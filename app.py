@@ -1,0 +1,45 @@
+from flask import Flask, render_template, request, redirect, send_file
+import os
+import uuid
+from modules.process import PDFEstatementProcessor
+
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['OUTPUT_FOLDER'] = 'output'
+
+processor = PDFEstatementProcessor()
+
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        file = request.files['pdf_file']
+        if file and file.filename.endswith('.pdf'):
+            filename = f"{uuid.uuid4()}.pdf"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+
+            try:
+                result, _ = processor.process_pdf_file(filepath)
+                output_filename = filename.replace('.pdf', '.csv')
+                output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+                result.to_csv(output_path, index=False)
+
+                return redirect(f'/download/{output_filename}')
+            except Exception as e:
+                return f"Error processing file: {str(e)}"
+        else:
+            return "Invalid file format. Only PDFs are supported."
+
+    return render_template('index.html')
+
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    return send_file(path, as_attachment=True)
+
+if __name__ == '__main__':
+    app.run(debug=True)
