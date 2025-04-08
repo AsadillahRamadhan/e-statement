@@ -25,8 +25,12 @@ class PDFEstatementProcessor:
             dfhead = tabula.read_pdf(pdf_path, pages=i, area=(80, 0, 230, 1000))
             an = dfhead[0].iloc[0, 0]
             no_rek = dfhead[0].iloc[0, 3]
-            PERIODE = dfhead[0].iloc[4, 3]
-            period_thn = PERIODE.split(' ')[1]
+            PERIODE = str(dfhead[0].iloc[4, 3]).strip()
+            period_thn = PERIODE.split(' ')[1] if ' ' in PERIODE else ''
+
+            if period_thn == '':
+                an = dfhead[0].iloc[0].index.tolist()[0]
+                no_rek = dfhead[0].iloc[0].index.tolist()[7]
 
             df = dfs[0]
             if i == 1:
@@ -137,7 +141,7 @@ class PDFEstatementProcessor:
 
             trans_type = re.split(r'\s+\d{3,}|KE\s+\d{3,}|DARI\s+\d{3,}', keterangan)[0].strip()
 
-            if(trans_type == "SWITCHING DB TRANSFER"):
+            if trans_type == "SWITCHING DB TRANSFER" or trans_type == 'SWITCHING CR DR':
                 return pd.Series(dtype=object)
 
             return pd.Series({
