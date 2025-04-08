@@ -112,11 +112,17 @@ class PDFEstatementProcessor:
                     if match:
                         a_name = match[0][3]
                     else:
-                        return
+                        return pd.Series(dtype=object)
             elif 'TRSF E-BANKING' in keterangan:
                 match = re.findall(r"TRSF E-BANKING\s+(CR|DB)\s+(.*)\s+(\d+).\d+\s+(.*)", keterangan)
                 if(match):
                     a_name = match[0][3]
+                else:
+                    match = re.findall(r"TRSF E-BANKING\s+(CR|DB)\s+(.*)\s+:*(\d{2}\/\d{2})\s+(.*)", keterangan)
+                    if(match):
+                        a_name = match[0][3]
+                    else:
+                        return pd.Series(dtype=object)
             elif 'SWITCHING' in keterangan:
                 match = re.findall(r"SWITCHING\s+.*\s+\d+\s+(.*)", keterangan)
                 if(match):
@@ -127,12 +133,12 @@ class PDFEstatementProcessor:
                     a_name = match[0]
             else:
 
-                return None
+                return pd.Series(dtype=object)
 
             trans_type = re.split(r'\s+\d{3,}|KE\s+\d{3,}|DARI\s+\d{3,}', keterangan)[0].strip()
 
             if(trans_type == "SWITCHING DB TRANSFER"):
-                return None
+                return pd.Series(dtype=object)
 
             return pd.Series({
                 '% date': tanggal,
