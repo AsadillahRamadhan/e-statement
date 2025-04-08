@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request, redirect, send_file
+from flask import Flask, render_template, request, redirect, send_file, session, url_for
 import os
 import uuid
 from modules.process import PDFEstatementProcessor
+import pandas as pd
 
 app = Flask(__name__)
+app.secret_key = 'your-secret-key'  # diperlukan untuk session
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads')
 app.config['OUTPUT_FOLDER'] = os.path.join(BASE_DIR, 'output')
@@ -24,11 +26,9 @@ def index():
 
             try:
                 result, _ = processor.process_pdf_file(filepath)
-                output_filename = filename.replace('.pdf', '.csv')
-                output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-                result.to_csv(output_path, index=False)
-
-                return redirect(f'/download/{output_filename}')
+                session['data'] = result.to_json(orient='split')
+                session['output_filename'] = filename.replace('.pdf', '.xlsx')
+                return redirect(url_for('preview'))
             except Exception as e:
                 return f"Error processing file: {str(e)}"
         else:
@@ -37,10 +37,24 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/preview')
+def preview():
+    if 'data' in session:
+        df = pd.read_json(session['data'], orient='split')
+        table_html = df.to_html(classes='table table-striped', index=False)
+        return render_template('preview.html', table=table_html, filename=session['output_filename'])
+    return redirect('/')
+
+
 @app.route('/download/<filename>')
 def download_file(filename):
-    path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
-    return send_file(path, as_attachment=True)
+    if 'data' in session:
+        df = pd.read_json(session['data'], orient='split')
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+        df.to_excel(output_path, index=False)
+        return send_file(output_path, as_attachment=True)
+    return "No file available to download."
+
 
 if __name__ == '__main__':
     app.run(debug=True)
