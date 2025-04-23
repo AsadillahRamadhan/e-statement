@@ -31,6 +31,7 @@ class PDFEstatementProcessor:
             if period_thn == '':
                 an = dfhead[0].iloc[0].index.tolist()[0]
                 no_rek = dfhead[0].iloc[0].index.tolist()[7]
+                period_thn = dfhead[0].iloc[2].iloc[-1].split(' ')[1]
 
             df = dfs[0]
             if i == 1:
@@ -88,53 +89,63 @@ class PDFEstatementProcessor:
         result.replace('nan', np.nan, inplace=True)
         result.dropna(subset=['jumlah', 'saldo'], inplace=True)
 
-        result['tanggal'] = result['tanggal'] + '/' + period_thn
-        result['jumlah'] = result['jumlah'].apply(lambda x: locale.format_string("%.2f", x, grouping=True)).astype(str)
-        result['saldo'] = result['saldo'].apply(lambda x: locale.format_string("%.2f", x, grouping=True)).astype(str)
+        # Format tanggal dd/mm/YYYY & format angka x,xxx,xxx,xxx.00
+        # result['tanggal'] = result['tanggal'] + '/' + period_thn
+        # result['jumlah'] = result['jumlah'].apply(lambda x: locale.format_string("%.2f", x, grouping=True)).astype(str)
+        # result['saldo'] = result['saldo'].apply(lambda x: locale.format_string("%.2f", x, grouping=True)).astype(str)
+
+        # Format tanggal dd/MMMM/YYYY & format angka x,xxx,xxx,xxx (tanpa .00)
+        result['tanggal'] = pd.to_datetime(
+            result['tanggal'] + '/' + period_thn,
+            format='%d/%m/%Y',
+            errors='coerce'
+        ).dt.strftime('%d-%b-%Y')
+        result['jumlah'] = result['jumlah'].apply(lambda x: locale.format_string("%d", round(float(x)), grouping=True))
+        result['saldo'] = result['saldo'].apply(lambda x: locale.format_string("%d", round(float(x)), grouping=True))
 
         def extract_transaction_info(row):
             keterangan = row['keterangan'].upper()
             direction = row['DBCR']
             nominal = row['jumlah']
-            b_number = row['no_rek']
-            b_name = row['nama_rek']
+            a_number = row['no_rek']
+            a_name = row['nama_rek']
             tanggal = row['tanggal']
 
-            a_number = '-'
-            a_nik = '-'
-            a_name = '-'
-            a_mobile = '-'
+            b_number = '-'
             b_nik = '-'
+            b_name = '-'
             b_mobile = '-'
+            a_nik = '-'
+            a_mobile = '-'
 
             if 'BI-FAST' in keterangan:
                 match = re.findall(r'BI-FAST\s+(DB|CR)\s+BIF\s+(TRANSFER)\s+KE\s+(\d+)\s+(.*)\s+KBB', keterangan)
                 if match:
-                    a_name = match[0][3]
+                    b_name = match[0][3]
                 else:
                     match = re.findall(r'BI-FAST\s+(DB|CR)\s+BIF\s+(TRANSFER)\s+DR\s+(\d+)\s+(.*)', keterangan)
                     if match:
-                        a_name = match[0][3]
+                        b_name = match[0][3]
                     else:
                         return pd.Series(dtype=object)
             elif 'TRSF E-BANKING' in keterangan:
                 match = re.findall(r"TRSF E-BANKING\s+(CR|DB)\s+(.*)\s+(\d+).\d+\s+(.*)", keterangan)
                 if(match):
-                    a_name = match[0][3]
+                    b_name = match[0][3]
                 else:
                     match = re.findall(r"TRSF E-BANKING\s+(CR|DB)\s+(.*)\s+:*(\d{2}\/\d{2})\s+(.*)", keterangan)
                     if(match):
-                        a_name = match[0][3]
+                        b_name = match[0][3]
                     else:
                         return pd.Series(dtype=object)
             elif 'SWITCHING' in keterangan:
                 match = re.findall(r"SWITCHING\s+.*\s+\d+\s+(.*)", keterangan)
                 if(match):
-                    a_name = match[0]
+                    b_name = match[0]
             elif 'BANK OF CHINA' in keterangan:
                 match = re.findall(r".*\s+LLG-BANK OF CHINA\s+(.*)", keterangan)
                 if(match):
-                    a_name = match[0]
+                    b_name = match[0]
             else:
 
                 return pd.Series(dtype=object)
