@@ -1,0 +1,116 @@
+{% extends 'layout/index.html' %} {% block content %}
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex justify-content-end">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUser">Add User</button>
+        </div>
+        <div class="modal fade" id="addUser" tabindex="-1" aria-labelledby="addUserLabel" aria-hidden="true">
+            <form method="POST" onsubmit="confirmation(this)" action="/user" >
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="addUserLabel">Add User</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="">Username</label>
+                            <input required type="text" name="username"  class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="">Email</label>
+                            <input required type="email" name="email" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="">Password</label>
+                            <input required type="password" name="password" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="">Role</label>
+                            <select name="role" id="" class="form-control">
+                                <option value="super_admin">Super Admin</option>
+                                <option  value="admin">Admin</option>
+                                <option value="user">User</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save changes</button>
+                    </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <table class="table table-responsive text-center">
+            <thead>
+                <tr>
+                    <td>No</td>
+                    <td>Username</td>
+                    <td>Email</td>
+                    <td>Role</td>
+                    <td>Action</td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                    <div class="modal fade" id="editUser{{ user.id }}" tabindex="-1" aria-labelledby="editUser{{ user.id }}Label" aria-hidden="true">
+                        <form method="POST" onsubmit="confirmation(this)" action="/user/{{ user.id }}" >
+                        <input type="hidden" name="_method" value="PUT">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                            <div class="modal-header">
+                                <h1 class="modal-title fs-5" id="editUser{{ user.id }}Label">Edit User</h1>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label for="">Username</label>
+                                    <input required type="text" name="username" value="{{ user.username }}" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="">Email</label>
+                                    <input required type="email" name="email" value="{{ user.email }}" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="">Password</label>
+                                    <input type="password" name="password" class="form-control">
+                                    <small class="text-xs text-danger">*Fill if you wanna change the password</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="">Role</label>
+                                    <select name="role" id="" class="form-control">
+                                        <option {{ "selected" if user.role == "super_admin" else "" }} value="super_admin">Super Admin</option>
+                                        <option {{ 'selected' if user.role == 'admin' else "" }}  value="admin">Admin</option>
+                                        <option {{ 'selected' if user.role == 'user' else "" }}  value="user">User</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary">Save changes</button>
+                            </div>
+                            </div>
+                        </div>
+                        </form>
+                    </div>
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.role }}</td>
+                    <td class="d-flex justify-content-center">
+                        <button class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#editUser{{ user.id }}"><i class="fas fa-edit"></i></button>
+                        <form action="/user/{{ user.id }}" method="POST" onsubmit="confirmation(this)">
+                            <input type="hidden" name="_method" value="DELETE">
+                            <button class="btn btn-danger"><i class="fas fa-trash"></i></button>
+                        </form>
+                        
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

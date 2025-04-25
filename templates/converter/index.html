@@ -1,0 +1,34 @@
+{% extends 'layout/index.html' %} {% block content %}
+<div class="card">
+  <div class="card-body">
+    <div class="bg-white p-4 p-md-5 rounded shadow w-100">
+  <h2 class="text-center mb-4 text-dark fw-bold">
+    🧾 Convert e-Statement PDF to CSV
+  </h2>
+
+  <form action="/converter" method="POST" enctype="multipart/form-data">
+    <div class="mb-3">
+      <label for="pdf_file" class="form-label">Select PDF File</label>
+      <input
+        type="file"
+        class="form-control"
+        id="pdf_file"
+        name="pdf_file"
+        accept=".pdf"
+        required
+      />
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100">
+      Upload & Convert
+    </button>
+  </form>
+
+  <p class="text-center text-muted small mt-4">
+    Supported format: <strong>PDF only</strong>
+  </p>
+</div>
+  </div>
+</div>
+
+{% endblock %}

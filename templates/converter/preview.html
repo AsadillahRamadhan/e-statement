@@ -1,0 +1,15 @@
+{% extends 'layout/index.html' %} {% block content %}
+<div class="card">
+  <div class="card-body">
+    <h2>Preview Data</h2>
+    <div class="table-responsive">{{ table|safe }}</div>
+    <a
+      class="btn btn-success mt-3"
+      href="{{ url_for('download_file', filename=filename) }}"
+      >Download Excel</a
+    >
+    <a class="btn btn-secondary mt-3" href="{{ url_for('index') }}">Kembali</a>
+  </div>
+</div>
+
+{% endblock %}
