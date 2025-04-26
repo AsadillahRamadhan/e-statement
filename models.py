@@ -19,3 +19,10 @@ class User(db.Model):
 
     def verify_password(self, plain_text):
         return check_password_hash(self.password_hash, plain_text)
+
+class TransferUser(db.Model):
+    __tablename__ = "transfer_users"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    account_number = db.Column(db.String(25), nullable=False)
+    bank_name = db.Column(db.String(10), nullable=False)

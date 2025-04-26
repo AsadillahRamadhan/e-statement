@@ -11,7 +11,7 @@ class PDFEstatementProcessor:
         locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
         pd.options.mode.chained_assignment = None
 
-    def process_pdf_file(self, pdf_path):
+    def process_pdf_file(self, pdf_path, transfer_data):
         pandas_dfs = []
         saldo_awal = 0
         saldo = 0
@@ -154,6 +154,11 @@ class PDFEstatementProcessor:
 
             if trans_type == "SWITCHING DB TRANSFER" or trans_type == 'SWITCHING CR DR':
                 return pd.Series(dtype=object)
+            
+            for data in transfer_data:
+                if data.name in b_name:
+                    b_name = data.name
+                    b_number = data.account_number
 
             return pd.Series({
                 '% date': tanggal,

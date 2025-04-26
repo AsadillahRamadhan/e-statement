@@ -60,7 +60,8 @@ def index():
             file.save(filepath)
 
             try:
-                result, _ = processor.process_pdf_file(filepath)
+                data = TransferUser.query.all()
+                result, _ = processor.process_pdf_file(filepath, data)
                 session['data'] = result.to_json(orient='split')
                 session['output_filename'] = filename.replace('.pdf', '.xlsx')
                 return redirect(url_for('preview'))
