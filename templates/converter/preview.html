@@ -1,8 +1,12 @@
 {% extends 'layout/index.html' %} {% block content %}
 <div class="card">
   <div class="card-body">
-    <h2>Preview Data</h2>
-    <div class="table-responsive">{{ table|safe }}</div>
+    <h2>Preview Data ({{ month }})</h2>
+    <div class="table-responsive">
+      <table class="table table-bordered">
+        {{ table|safe }}
+      </table>
+    </div>
     <a
       class="btn btn-success mt-3"
       href="{{ url_for('download_file', filename=filename) }}"
@@ -12,4 +16,11 @@
   </div>
 </div>
 
+<style>
+  .table-responsive table,
+  .table-responsive th,
+  .table-responsive td {
+    text-align: center;
+  }
+</style>
 {% endblock %}

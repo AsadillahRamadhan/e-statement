@@ -6,7 +6,7 @@ from modules.process import PDFEstatementProcessor
 import pandas as pd
 from extensions import db
 from sqlalchemy import or_
-from flask_login import current_user
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -48,29 +48,59 @@ def global_middleware():
     if allowed_roles:
         user_role = session.get('role')
         if not user_role or user_role not in allowed_roles:
-            return abort(403)  # Jika role tidak sesuai, return forbidden
+            return abort(403)
         
 @app.route('/converter', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        file = request.files['pdf_file']
-        if file and file.filename.endswith('.pdf'):
-            filename = f"{uuid.uuid4()}.pdf"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
+        session.pop('data', None)
+        session.pop('data_month', None)
+        session.pop('output_filename', None)
+        files = request.files.getlist('pdf_file[]')
+        niks = request.form.getlist('nik[]')
+        mobile_phones = request.form.getlist('mobile_phone[]')
+        names = request.form.getlist('name[]')
+        sources = request.form.getlist('source[]') 
+        month = request.form.get('month')
 
-            try:
-                data = TransferUser.query.all()
-                result, _ = processor.process_pdf_file(filepath, data)
-                session['data'] = result.to_json(orient='split')
-                session['output_filename'] = filename.replace('.pdf', '.xlsx')
-                return redirect(url_for('preview'))
-            except Exception as e:
-                return f"Error processing file: {str(e)}"
-        else:
-            return "Invalid file format. Only PDFs are supported."
+        if not files or not niks or not mobile_phones or not names or not sources or not month:
+            return "All fields are required."
+
+        if not (len(files) == len(niks) == len(mobile_phones) == len(names) == len(sources)):
+            return "Mismatch between number of files and data fields."
+
+        month = datetime.strptime(month, "%Y-%m").strftime("%B %Y")
+        combined_results = []
+
+        for idx, file in enumerate(files):
+            if file and file.filename.endswith('.pdf'):
+                filename = f"{uuid.uuid4()}.pdf"
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+
+                try:
+                    data = TransferUser.query.all()
+                    result, _ = processor.process_pdf_file(filepath, data, niks[idx], mobile_phones[idx], sources[idx], )
+                    combined_results.append(result)
+                except Exception as e:
+                    return f"Error processing file {file.filename}: {str(e)}"
+            else:
+                return f"Invalid file format for {file.filename}. Only PDFs are supported."
+
+        if combined_results:
+            final_df = pd.concat(combined_results, ignore_index=True)
+            session['data'] = final_df.to_json(orient='split')
+            session['output_filename'] = f"export_{month}.xlsx"
+            session['data_month'] = month
+            df = pd.read_json(session['data'], orient='split')
+            table_html = df.to_html(classes='table table-striped', index=False)
+            return render_template('converter/preview.html', title="Converter", table=table_html, month=month, filename=session['output_filename'], current_url=request.url)
+            # return redirect(url_for('preview'))
+
+        return "No valid files processed."
 
     return render_template('converter/index.html', current_url=request.url, title="Converter")
+
 
 @app.get('/login')
 def login_view():
@@ -168,13 +198,13 @@ def create_user():
     return redirect(request.referrer or '/')
 
 
-@app.route('/preview')
-def preview():
-    if 'data' in session:
-        df = pd.read_json(session['data'], orient='split')
-        table_html = df.to_html(classes='table table-striped', index=False)
-        return render_template('converter/preview.html', title="Converter", table=table_html, current_url=request.url, filename=session['output_filename'])
-    return redirect('/converter')
+# @app.post('/preview')
+# def preview():
+#     if 'data' in session:
+#         df = pd.read_json(session['data'], orient='split')
+#         table_html = df.to_html(classes='table table-striped', index=False)
+#         return render_template('converter/preview.html', title="Converter", table=table_html, month=session['data_month'], current_url=request.url, filename=session['output_filename'])
+#     return redirect('/converter')
 
 
 @app.route('/download/<filename>')

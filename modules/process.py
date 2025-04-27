@@ -11,7 +11,7 @@ class PDFEstatementProcessor:
         locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
         pd.options.mode.chained_assignment = None
 
-    def process_pdf_file(self, pdf_path, transfer_data):
+    def process_pdf_file(self, pdf_path, transfer_data, nik, mobile_phone, source):
         pandas_dfs = []
         saldo_awal = 0
         saldo = 0
@@ -115,8 +115,8 @@ class PDFEstatementProcessor:
             b_nik = '-'
             b_name = '-'
             b_mobile = '-'
-            a_nik = '-'
-            a_mobile = '-'
+            a_nik = nik
+            a_mobile = mobile_phone
 
             if 'BI-FAST' in keterangan:
                 match = re.findall(r'BI-FAST\s+(DB|CR)\s+BIF\s+(TRANSFER)\s+KE\s+(\d+)\s+(.*)\s+KBB', keterangan)
@@ -167,10 +167,12 @@ class PDFEstatementProcessor:
                 '% A NIK': a_nik,
                 '% A name': a_name,
                 '% A Mobile': a_mobile,
+                '% A Source': source,
                 '% B number': b_number,
                 '% B NIK': b_nik,
                 '% B name': b_name,
                 '% B Mobile': b_mobile,
+                '% Keterangan': keterangan,
                 '% Transactiontype': trans_type,
                 '% Direction': direction
             })

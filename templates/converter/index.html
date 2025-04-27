@@ -2,33 +2,124 @@
 <div class="card">
   <div class="card-body">
     <div class="bg-white p-4 p-md-5 rounded shadow w-100">
-  <h2 class="text-center mb-4 text-dark fw-bold">
-    🧾 Convert e-Statement PDF to CSV
-  </h2>
+      <h2 class="text-center mb-4 text-dark fw-bold">
+        🧾 Convert e-Statement PDF to CSV
+      </h2>
 
-  <form action="/converter" method="POST" enctype="multipart/form-data">
-    <div class="mb-3">
-      <label for="pdf_file" class="form-label">Select PDF File</label>
-      <input
-        type="file"
-        class="form-control"
-        id="pdf_file"
-        name="pdf_file"
-        accept=".pdf"
-        required
-      />
+      <form
+        id="uploadForm"
+        action="/converter"
+        method="POST"
+        enctype="multipart/form-data"
+      >
+        <!-- Input Bulan SEKALI -->
+        <div class="mb-4">
+          <label class="form-label">Month</label>
+          <input
+            type="Month"
+            class="form-control"
+            name="month"
+            placeholder="Enter Month (e.g., April 2025)"
+            required
+          />
+        </div>
+
+        <div id="input-group-container">
+          <div class="input-group-item mb-4 border p-3 rounded bg-light">
+            <div class="mb-3">
+              <label class="form-label">Select PDF File</label>
+              <input
+                type="file"
+                class="form-control"
+                name="pdf_file[]"
+                accept=".pdf"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">NIK</label>
+              <input
+                type="text"
+                class="form-control"
+                name="nik[]"
+                placeholder="Enter NIK"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Mobile Phone</label>
+              <input
+                type="text"
+                class="form-control"
+                name="mobile_phone[]"
+                placeholder="Enter Mobile Phone"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Name</label>
+              <input
+                type="text"
+                class="form-control"
+                name="name[]"
+                placeholder="Enter Name"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Source</label>
+              <input
+                type="text"
+                class="form-control"
+                name="source[]"
+                placeholder="Enter Source (BCA, BRI, etc)"
+                required
+              />
+            </div>
+          </div>
+        </div>
+
+        <button type="button" id="addMore" class="btn btn-secondary mb-3 w-100">
+          ➕ Add More
+        </button>
+
+        <button type="submit" class="btn btn-primary w-100">
+          Upload & Convert
+        </button>
+      </form>
+
+      <p class="text-center text-muted small mt-4">
+        Supported format: <strong>PDF only</strong>
+      </p>
     </div>
-
-    <button type="submit" class="btn btn-primary w-100">
-      Upload & Convert
-    </button>
-  </form>
-
-  <p class="text-center text-muted small mt-4">
-    Supported format: <strong>PDF only</strong>
-  </p>
-</div>
   </div>
 </div>
 
+<script>
+  document.getElementById("addMore").addEventListener("click", function () {
+    const container = document.getElementById("input-group-container");
+    const newItem = container.children[0].cloneNode(true);
+
+    newItem.querySelectorAll("input").forEach((input) => {
+      input.value = "";
+    });
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "btn btn-danger btn-sm removeItem";
+    removeButton.innerHTML = "🗑️ Remove";
+
+    removeButton.addEventListener("click", function () {
+      container.removeChild(newItem);
+    });
+
+    newItem.appendChild(removeButton);
+
+    container.appendChild(newItem);
+  });
+
+  document.querySelectorAll(".removeItem").forEach((button) => {
+    button.remove();
+  });
+</script>
 {% endblock %}
