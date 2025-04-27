@@ -5,8 +5,9 @@ import uuid
 from modules.process import PDFEstatementProcessor
 import pandas as pd
 from extensions import db
-from sqlalchemy import or_
+from sqlalchemy import or_, asc
 from datetime import datetime
+from io import StringIO
 
 app = Flask(__name__)
 
@@ -62,6 +63,8 @@ def index():
         names = request.form.getlist('name[]')
         sources = request.form.getlist('source[]') 
         month = request.form.get('month')
+        emails = request.form.getlist('email[]')
+        user_pass = request.form.getlist('user_pass[]')
 
         if not files or not niks or not mobile_phones or not names or not sources or not month:
             return "All fields are required."
@@ -80,7 +83,8 @@ def index():
 
                 try:
                     data = TransferUser.query.all()
-                    result, _ = processor.process_pdf_file(filepath, data, niks[idx], mobile_phones[idx], sources[idx], )
+                    bank_code = BankCode.query.filter(BankCode.bank_name.like(f"%{sources[idx]}%")).order_by(asc(BankCode.id)).first()
+                    result, _ = processor.process_pdf_file(filepath, BankCode, data, niks[idx], mobile_phones[idx], sources[idx], bank_code.bank_code, emails[idx], user_pass[idx])
                     combined_results.append(result)
                 except Exception as e:
                     return f"Error processing file {file.filename}: {str(e)}"
@@ -89,13 +93,9 @@ def index():
 
         if combined_results:
             final_df = pd.concat(combined_results, ignore_index=True)
-            session['data'] = final_df.to_json(orient='split')
-            session['output_filename'] = f"export_{month}.xlsx"
-            session['data_month'] = month
-            df = pd.read_json(session['data'], orient='split')
-            table_html = df.to_html(classes='table table-striped', index=False)
-            return render_template('converter/preview.html', title="Converter", table=table_html, month=month, filename=session['output_filename'], current_url=request.url)
-            # return redirect(url_for('preview'))
+            table_html = final_df.to_html(classes='table table-striped', index=False)
+            csv_data = final_df.to_csv(index=False)
+            return render_template('converter/preview.html', title="Converter", data=csv_data, table=table_html, month=month, filename=f"export_{month}.xlsx", current_url=request.url)
 
         return "No valid files processed."
 
@@ -207,13 +207,25 @@ def create_user():
 #     return redirect('/converter')
 
 
-@app.route('/download/<filename>')
+@app.post('/download/<filename>')
 def download_file(filename):
-    if 'data' in session:
-        df = pd.read_json(session['data'], orient='split')
-        output_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
-        df.to_excel(output_path, index=False)
-        return send_file(output_path, as_attachment=True)
+    data = request.form.get('data')
+    
+    if data:
+        try:
+            csv_buffer = StringIO(data)
+            
+            df = pd.read_csv(csv_buffer, dtype={'% A Bank Code': str, '% B Bank Code': str})
+
+            output_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+            
+            df.to_excel(output_path, index=False)
+
+            return send_file(output_path, as_attachment=True)
+
+        except Exception as e:
+            return f"Error processing CSV data: {str(e)}"
+
     return "No file available to download."
 
 

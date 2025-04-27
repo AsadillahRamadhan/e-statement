@@ -11,7 +11,7 @@ class PDFEstatementProcessor:
         locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
         pd.options.mode.chained_assignment = None
 
-    def process_pdf_file(self, pdf_path, transfer_data, nik, mobile_phone, source):
+    def process_pdf_file(self, pdf_path, BankCode, transfer_data, nik, mobile_phone, source, bank_code, email, user_pass):
         pandas_dfs = []
         saldo_awal = 0
         saldo = 0
@@ -115,6 +115,10 @@ class PDFEstatementProcessor:
             b_nik = '-'
             b_name = '-'
             b_mobile = '-'
+            b_email_pass = '-'
+            b_user_pass = '-'
+            b_bank_code = bank_code
+            b_bank_name = f"Bank {source}"
             a_nik = nik
             a_mobile = mobile_phone
 
@@ -122,10 +126,18 @@ class PDFEstatementProcessor:
                 match = re.findall(r'BI-FAST\s+(DB|CR)\s+BIF\s+(TRANSFER)\s+KE\s+(\d+)\s+(.*)\s+KBB', keterangan)
                 if match:
                     b_name = match[0][3]
+                    bank = BankCode.query.filter(BankCode.bank_code == match[0][2]).first()
+                    if(bank):
+                        b_bank_code = bank.bank_code
+                        b_bank_name = bank.bank_name
                 else:
                     match = re.findall(r'BI-FAST\s+(DB|CR)\s+BIF\s+(TRANSFER)\s+DR\s+(\d+)\s+(.*)', keterangan)
                     if match:
                         b_name = match[0][3]
+                        bank = BankCode.query.filter(BankCode.bank_code == match[0][2]).first()
+                        if(bank):
+                            b_bank_code = bank.bank_code
+                            b_bank_name = bank.bank_name
                     else:
                         return pd.Series(dtype=object)
             elif 'TRSF E-BANKING' in keterangan:
@@ -139,9 +151,13 @@ class PDFEstatementProcessor:
                     else:
                         return pd.Series(dtype=object)
             elif 'SWITCHING' in keterangan:
-                match = re.findall(r"SWITCHING\s+.*\s+\d+\s+(.*)", keterangan)
+                match = re.findall(r"SWITCHING\s+.*\s+(\d+)\s+(.*)", keterangan)
                 if(match):
-                    b_name = match[0]
+                    b_name = match[0][1]
+                    bank = BankCode.query.filter(BankCode.bank_code == match[0][0]).first()
+                    if(bank):
+                        b_bank_code = bank.bank_code
+                        b_bank_name = bank.bank_name
             elif 'BANK OF CHINA' in keterangan:
                 match = re.findall(r".*\s+LLG-BANK OF CHINA\s+(.*)", keterangan)
                 if(match):
@@ -152,7 +168,10 @@ class PDFEstatementProcessor:
 
             trans_type = re.split(r'\s+\d{3,}|KE\s+\d{3,}|DARI\s+\d{3,}', keterangan)[0].strip()
 
-            if trans_type == "SWITCHING DB TRANSFER" or trans_type == 'SWITCHING CR DR':
+            # if trans_type == "SWITCHING DB TRANSFER" or trans_type == 'SWITCHING CR DR':
+            #     return pd.Series(dtype=object)
+
+            if trans_type == "SWITCHING DB TRANSFER":
                 return pd.Series(dtype=object)
             
             for data in transfer_data:
@@ -164,14 +183,21 @@ class PDFEstatementProcessor:
                 '% date': tanggal,
                 '% nominal': nominal,
                 '% A number': a_number,
+                '% A Bank Code': bank_code,
+                '% A Bank Name': f"Bank {source}",
                 '% A NIK': a_nik,
                 '% A name': a_name,
                 '% A Mobile': a_mobile,
-                '% A Source': source,
+                '% A Email Pass': email,
+                '% A User Pass': user_pass,
                 '% B number': b_number,
+                '% B Bank Code': b_bank_code,
+                '% B Bank Name': b_bank_name,
                 '% B NIK': b_nik,
                 '% B name': b_name,
                 '% B Mobile': b_mobile,
+                '% B Email Pass': b_email_pass,
+                '% B User Pass': b_user_pass,
                 '% Keterangan': keterangan,
                 '% Transactiontype': trans_type,
                 '% Direction': direction

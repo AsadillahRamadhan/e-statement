@@ -3,7 +3,7 @@
   <div class="card-body">
     <div class="bg-white p-4 p-md-5 rounded shadow w-100">
       <h2 class="text-center mb-4 text-dark fw-bold">
-        🧾 Convert e-Statement PDF to CSV
+        🧾 Convert e-Statement PDF to CSV + Login
       </h2>
 
       <form
@@ -12,11 +12,10 @@
         method="POST"
         enctype="multipart/form-data"
       >
-        <!-- Input Bulan SEKALI -->
         <div class="mb-4">
           <label class="form-label">Month</label>
           <input
-            type="Month"
+            type="month"
             class="form-control"
             name="month"
             placeholder="Enter Month (e.g., April 2025)"
@@ -27,6 +26,28 @@
         <div id="input-group-container">
           <div class="input-group-item mb-4 border p-3 rounded bg-light">
             <div class="mb-3">
+              <label class="form-label">Email Pass</label>
+              <input
+                type="email"
+                class="form-control"
+                name="email[]"
+                placeholder="Enter Email Pass"
+                required
+              />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">User Pass</label>
+              <input
+                type="user_pass"
+                class="form-control"
+                name="user_pass[]"
+                placeholder="Enter User Pass"
+                required
+              />
+            </div>
+
+            <div class="mb-3">
               <label class="form-label">Select PDF File</label>
               <input
                 type="file"
@@ -36,6 +57,7 @@
                 required
               />
             </div>
+
             <div class="mb-3">
               <label class="form-label">NIK</label>
               <input
@@ -46,6 +68,7 @@
                 required
               />
             </div>
+
             <div class="mb-3">
               <label class="form-label">Mobile Phone</label>
               <input
@@ -56,6 +79,7 @@
                 required
               />
             </div>
+
             <div class="mb-3">
               <label class="form-label">Name</label>
               <input
@@ -66,6 +90,7 @@
                 required
               />
             </div>
+
             <div class="mb-3">
               <label class="form-label">Source</label>
               <input
@@ -76,6 +101,8 @@
                 required
               />
             </div>
+
+            <!-- Remove button hanya untuk clone, bukan di awal -->
           </div>
         </div>
 
@@ -98,7 +125,8 @@
 <script>
   document.getElementById("addMore").addEventListener("click", function () {
     const container = document.getElementById("input-group-container");
-    const newItem = container.children[0].cloneNode(true);
+    const originalItem = container.children[0];
+    const newItem = originalItem.cloneNode(true);
 
     newItem.querySelectorAll("input").forEach((input) => {
       input.value = "";
@@ -106,20 +134,18 @@
 
     const removeButton = document.createElement("button");
     removeButton.type = "button";
-    removeButton.className = "btn btn-danger btn-sm removeItem";
+    removeButton.className = "btn btn-danger btn-sm removeItem mt-2";
     removeButton.innerHTML = "🗑️ Remove";
 
     removeButton.addEventListener("click", function () {
       container.removeChild(newItem);
     });
 
-    newItem.appendChild(removeButton);
+    if (!newItem.querySelector(".removeItem")) {
+      newItem.appendChild(removeButton);
+    }
 
     container.appendChild(newItem);
-  });
-
-  document.querySelectorAll(".removeItem").forEach((button) => {
-    button.remove();
   });
 </script>
 {% endblock %}

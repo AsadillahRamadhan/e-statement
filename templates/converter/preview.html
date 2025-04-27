@@ -7,12 +7,16 @@
         {{ table|safe }}
       </table>
     </div>
-    <a
-      class="btn btn-success mt-3"
-      href="{{ url_for('download_file', filename=filename) }}"
-      >Download Excel</a
+    <form
+      action="{{ url_for('download_file', filename=filename) }}"
+      method="POST"
     >
-    <a class="btn btn-secondary mt-3" href="{{ url_for('index') }}">Kembali</a>
+      <input type="hidden" name="data" value="{{ data }}" />
+      <button type="submit" class="btn btn-success mt-3">Download Excel</button>
+      <a class="btn btn-secondary mt-3" href="{{ url_for('index') }}"
+        >Kembali</a
+      >
+    </form>
   </div>
 </div>
 
@@ -23,4 +27,14 @@
     text-align: center;
   }
 </style>
+<script>
+  document.querySelector("form").onsubmit = function () {
+    var data = document.querySelector('input[name="data"]').value;
+    if (!data) {
+      alert("Data CSV kosong!");
+      return false;
+    }
+    return true;
+  };
+</script>
 {% endblock %}

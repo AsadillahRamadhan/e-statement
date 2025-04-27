@@ -26,3 +26,9 @@ class TransferUser(db.Model):
     name = db.Column(db.String(255), nullable=False)
     account_number = db.Column(db.String(25), nullable=False)
     bank_name = db.Column(db.String(10), nullable=False)
+
+class BankCode(db.Model):
+    __tablename__ = "bank_codes"
+    id = db.Column(db.Integer, primary_key=True)
+    bank_name = db.Column(db.String(100), nullable=False)
+    bank_code = db.Column(db.String(3), nullable=False)
