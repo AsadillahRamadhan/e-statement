@@ -3,7 +3,7 @@
   <div class="card-body">
     <div class="bg-white p-4 p-md-5 rounded shadow w-100">
       <h2 class="text-center mb-4 text-dark fw-bold">
-        🧾 Convert e-Statement PDF to CSV + Login
+        🧾 Convert e-Statement PDF to CSV
       </h2>
 
       <form
@@ -12,127 +12,88 @@
         method="POST"
         enctype="multipart/form-data"
       >
-        <div class="mb-4">
-          <label class="form-label">Month</label>
-          <input
-            type="month"
-            class="form-control"
-            name="month"
-            placeholder="Enter Month (e.g., April 2025)"
-            required
-          />
-        </div>
-
-        <div id="input-group-container">
-          <div class="input-group-item mb-4 border p-3 rounded bg-light">
-            <div class="row">
-              <div class="mb-3 col-md-6">
-                <label class="form-label">Email</label>
-                <input
-                  type="email"
-                  class="form-control"
-                  name="email[]"
-                  placeholder="Enter Email"
-                  required
-                />
-              </div>
-              <div class="mb-3 col-md-6">
-                <label class="form-label">Email Password</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  name="email_pass[]"
-                  placeholder="Enter Email Password"
-                  required
-                />
-              </div>
-            </div>
-            <div class="row">
-              <div class="mb-3 col-md-6">
-                <label class="form-label">Username</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  name="user[]"
-                  placeholder="Enter Username"
-                  required
-                />
-            </div>
-              <div class="mb-3 col-md-6">
-                <label class="form-label">Username Password</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  name="user_pass[]"
-                  placeholder="Enter Username Password"
-                  required
-                />
-              </div>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Select PDF File</label>
+        <div>
+          <div class="row">
+            <div class="mb-3 col-md-6">
+              <label class="form-label">Email</label>
               <input
-                type="file"
+                type="email"
                 class="form-control"
-                name="pdf_file[]"
-                accept=".pdf"
+                name="email"
+                placeholder="Enter Email"
                 required
               />
             </div>
-
-            <div class="mb-3">
-              <label class="form-label">NIK</label>
+            <div class="mb-3 col-md-6">
+              <label class="form-label">Email Password</label>
               <input
                 type="text"
                 class="form-control"
-                name="nik[]"
-                placeholder="Enter NIK"
+                name="email_pass"
+                placeholder="Enter Email Password"
                 required
               />
             </div>
-
-            <div class="mb-3">
-              <label class="form-label">Mobile Phone</label>
+          </div>
+          <div class="row">
+            <div class="mb-3 col-md-6">
+              <label class="form-label">Username</label>
               <input
                 type="text"
                 class="form-control"
-                name="mobile_phone[]"
-                placeholder="Enter Mobile Phone"
+                name="user"
+                placeholder="Enter Username"
                 required
               />
             </div>
-
-            <div class="mb-3">
-              <label class="form-label">Name</label>
+            <div class="mb-3 col-md-6">
+              <label class="form-label">Username Password</label>
               <input
                 type="text"
                 class="form-control"
-                name="name[]"
-                placeholder="Enter Name"
+                name="user_pass"
+                placeholder="Enter Username Password"
                 required
               />
             </div>
-
-            <div class="mb-3">
-              <label class="form-label">Source</label>
-              <input
-                type="text"
-                class="form-control"
-                name="source[]"
-                placeholder="Enter Source (BCA, BRI, etc)"
-                required
-              />
-            </div>
-
-            <!-- Remove button hanya untuk clone, bukan di awal -->
+          </div>
+          <div class="mb-3">
+            <label class="form-label">NIK</label>
+            <input
+              type="text"
+              class="form-control"
+              name="nik"
+              placeholder="Enter NIK"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Mobile Phone</label>
+            <input
+              type="text"
+              class="form-control"
+              name="mobile_phone"
+              placeholder="Enter Mobile Phone"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input
+              type="text"
+              class="form-control"
+              name="name"
+              placeholder="Enter Name"
+              required
+            />
           </div>
         </div>
+
+        <div id="input-group-container"></div>
 
         <button type="button" id="addMore" class="btn btn-secondary mb-3 w-100">
           ➕ Add More
         </button>
-
         <button type="submit" class="btn btn-primary w-100">
           Upload & Convert
         </button>
@@ -145,30 +106,61 @@
   </div>
 </div>
 
+<template id="inputGroupTemplate">
+  <div class="input-group-item mb-4 border p-3 rounded bg-light">
+    <div class="mb-4">
+      <label class="form-label">Month</label>
+      <input type="month" class="form-control" name="month[]" required />
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Select PDF File</label>
+      <input
+        type="file"
+        class="form-control"
+        name="pdf_file[]"
+        accept=".pdf"
+        required
+      />
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Source</label>
+      <select name="source[]" class="form-control bank-select" required>
+        {% for bank in banks %}
+        <option value="{{ bank.bank_name }}">{{ bank.bank_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+</template>
 <script>
-  document.getElementById("addMore").addEventListener("click", function () {
-    const container = document.getElementById("input-group-container");
-    const originalItem = container.children[0];
-    const newItem = originalItem.cloneNode(true);
+  $(document).ready(function () {
+    function addInputGroup() {
+      const template = document.getElementById("inputGroupTemplate");
+      const clone = template.content.cloneNode(true);
+      const wrapper = document.createElement("div");
+      wrapper.className = "position-relative";
+      wrapper.appendChild(clone);
 
-    newItem.querySelectorAll("input").forEach((input) => {
-      input.value = "";
-    });
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "btn btn-danger btn-sm removeItem mt-2";
+      removeBtn.textContent = "🗑️ Remove";
+      removeBtn.addEventListener("click", () => wrapper.remove());
 
-    const removeButton = document.createElement("button");
-    removeButton.type = "button";
-    removeButton.className = "btn btn-danger btn-sm removeItem mt-2";
-    removeButton.innerHTML = "🗑️ Remove";
+      wrapper.appendChild(removeBtn);
+      document.getElementById("input-group-container").appendChild(wrapper);
 
-    removeButton.addEventListener("click", function () {
-      container.removeChild(newItem);
-    });
-
-    if (!newItem.querySelector(".removeItem")) {
-      newItem.appendChild(removeButton);
+      $(wrapper).find(".bank-select").select2({
+        theme: "bootstrap4",
+        width: "100%",
+      });
     }
 
-    container.appendChild(newItem);
+    addInputGroup();
+
+    document.getElementById("addMore").addEventListener("click", function () {
+      addInputGroup();
+    });
   });
 </script>
 {% endblock %}

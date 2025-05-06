@@ -118,7 +118,7 @@ class PDFEstatementProcessor:
             b_email_pass = '-'
             b_user_pass = '-'
             b_bank_code = bank_code
-            b_bank_name = f"Bank {source}"
+            b_bank_name = source
             a_nik = nik
             a_mobile = mobile_phone
 
@@ -184,7 +184,7 @@ class PDFEstatementProcessor:
                 '% nominal': nominal,
                 '% A number': a_number,
                 '% A Bank Code': bank_code,
-                '% A Bank Name': f"Bank {source}",
+                '% A Bank Name': source,
                 '% A NIK': a_nik,
                 '% A name': a_name,
                 '% A Mobile': a_mobile,

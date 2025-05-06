@@ -8,6 +8,7 @@ from extensions import db
 from sqlalchemy import or_, asc
 from datetime import datetime
 from io import StringIO
+import xlsxwriter
 
 app = Flask(__name__)
 
@@ -58,23 +59,19 @@ def index():
         session.pop('data_month', None)
         session.pop('output_filename', None)
         files = request.files.getlist('pdf_file[]')
-        niks = request.form.getlist('nik[]')
-        mobile_phones = request.form.getlist('mobile_phone[]')
-        names = request.form.getlist('name[]')
+        niks = request.form.get('nik')
+        mobile_phones = request.form.get('mobile_phone')
+        names = request.form.get('name')
         sources = request.form.getlist('source[]') 
-        month = request.form.get('month')
-        emails = request.form.getlist('email[]')
-        emails_pass = request.form.getlist('email_pass[]')
-        users = request.form.getlist('user[]')
-        users_pass = request.form.getlist('user_pass[]')
+        month = request.form.getlist('month[]')
+        emails = request.form.get('email')
+        emails_pass = request.form.get('email_pass')
+        users = request.form.get('user')
+        users_pass = request.form.get('user_pass')
 
         if not files or not niks or not mobile_phones or not names or not sources or not month:
             return "All fields are required."
-
-        if not (len(files) == len(niks) == len(mobile_phones) == len(names) == len(sources)):
-            return "Mismatch between number of files and data fields."
-
-        month = datetime.strptime(month, "%Y-%m").strftime("%B %Y")
+        
         combined_results = []
 
         for idx, file in enumerate(files):
@@ -86,7 +83,7 @@ def index():
                 try:
                     data = TransferUser.query.all()
                     bank_code = BankCode.query.filter(BankCode.bank_name.like(f"%{sources[idx]}%")).order_by(asc(BankCode.id)).first()
-                    result, _ = processor.process_pdf_file(filepath, BankCode, data, niks[idx], mobile_phones[idx], sources[idx], bank_code.bank_code, emails[idx], emails_pass[idx], users[idx], users_pass[idx])
+                    result, _ = processor.process_pdf_file(filepath, BankCode, data, niks, mobile_phones, sources[idx], bank_code.bank_code, emails, emails_pass, users, users_pass)
                     combined_results.append(result)
                 except Exception as e:
                     return f"Error processing file {file.filename}: {str(e)}"
@@ -97,11 +94,12 @@ def index():
             final_df = pd.concat(combined_results, ignore_index=True)
             table_html = final_df.to_html(classes='table table-striped', index=False)
             csv_data = final_df.to_csv(index=False)
-            return render_template('converter/preview.html', title="Converter", data=csv_data, table=table_html, month=month, filename=f"export_{month}.xlsx", current_url=request.url)
+            return render_template('converter/preview.html', title="Converter", data=csv_data, table=table_html, filename=f"export.xlsx", current_url=request.url)
 
         return "No valid files processed."
-
-    return render_template('converter/index.html', current_url=request.url, title="Converter")
+    
+    banks = BankCode.query.all()
+    return render_template('converter/index.html', current_url=request.url, title="Converter", banks=banks)
 
 
 @app.get('/login')
@@ -212,16 +210,50 @@ def create_user():
 @app.post('/download/<filename>')
 def download_file(filename):
     data = request.form.get('data')
-    
+
     if data:
         try:
             csv_buffer = StringIO(data)
-            
+
             df = pd.read_csv(csv_buffer, dtype={'% A Bank Code': str, '% B Bank Code': str})
+            df['% nominal'] = df['% nominal'].str.replace(',', '', regex=False).astype(float)
+            df['% date'] = df['% date'].apply(lambda x: datetime.strptime(x, '%d-%b-%Y'))
 
             output_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
-            
-            df.to_excel(output_path, index=False)
+
+            workbook = xlsxwriter.Workbook(output_path)
+            worksheet = workbook.add_worksheet('Sheet1')
+
+            date_format = workbook.add_format({'num_format': 'dd-mmm-yy'})
+            accounting_format = workbook.add_format({'num_format': '#,##0'})
+            text_format = workbook.add_format({'num_format': '@'})
+            header_format = workbook.add_format({
+                'bold': True,
+                'border': 1, 
+                'bg_color': '#D9D9D9'
+            })
+
+            for col_idx, col_name in enumerate(df.columns):
+                worksheet.write(0, col_idx, col_name, header_format)
+
+            for row_idx, row in enumerate(df.itertuples(index=False), start=1):
+                for col_idx, value in enumerate(row):
+                    col_name = df.columns[col_idx]
+                    if col_name == '% date':
+                        worksheet.write_datetime(row_idx, col_idx, value, date_format)
+                    elif col_name == '% nominal':
+                        worksheet.write_number(row_idx, col_idx, value, accounting_format)
+                    elif df.dtypes[col_name] == object:
+                        worksheet.write_string(row_idx, col_idx, str(value), text_format)
+                    else:
+                        worksheet.write(row_idx, col_idx, value)
+
+            worksheet.set_column('A:A', 15, date_format)
+            worksheet.set_column('B:B', 10, accounting_format)
+            for col in range(2, len(df.columns)):
+                worksheet.set_column(col, col, 15, text_format)
+
+            workbook.close()
 
             return send_file(output_path, as_attachment=True)
 
@@ -229,7 +261,6 @@ def download_file(filename):
             return f"Error processing CSV data: {str(e)}"
 
     return "No file available to download."
-
 
 if __name__ == '__main__':
     app.run(debug=True)
