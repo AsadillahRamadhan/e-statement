@@ -63,13 +63,19 @@ def index():
         mobile_phones = request.form.get('mobile_phone')
         names = request.form.get('name')
         sources = request.form.getlist('source[]') 
-        month = request.form.getlist('month[]')
         emails = request.form.get('email')
         emails_pass = request.form.get('email_pass')
         users = request.form.get('user')
         users_pass = request.form.get('user_pass')
+        sources_per_batch = request.form.getlist('source_per_batch[]')
 
-        if not files or not niks or not mobile_phones or not names or not sources or not month:
+        final_sources = [
+            source
+            for source, count in zip(sources, sources_per_batch)
+            for _ in range(int(count))
+        ]
+
+        if not files or not niks or not mobile_phones or not names or not sources:
             return "All fields are required."
         
         combined_results = []
@@ -82,8 +88,8 @@ def index():
 
                 try:
                     data = TransferUser.query.all()
-                    bank_code = BankCode.query.filter(BankCode.bank_name.like(f"%{sources[idx]}%")).order_by(asc(BankCode.id)).first()
-                    result, _ = processor.process_pdf_file(filepath, BankCode, data, niks, mobile_phones, sources[idx], bank_code.bank_code, emails, emails_pass, users, users_pass)
+                    bank_code = BankCode.query.filter(BankCode.bank_name.like(f"%{final_sources[idx]}%")).order_by(asc(BankCode.id)).first()
+                    result, _ = processor.process_pdf_file(filepath, BankCode, data, niks, mobile_phones, final_sources[idx], bank_code.bank_code, emails, emails_pass, users, users_pass)
                     combined_results.append(result)
                 except Exception as e:
                     return f"Error processing file {file.filename}: {str(e)}"
@@ -215,7 +221,7 @@ def download_file(filename):
         try:
             csv_buffer = StringIO(data)
 
-            df = pd.read_csv(csv_buffer, dtype={'% A Bank Code': str, '% B Bank Code': str})
+            df = pd.read_csv(csv_buffer, dtype={'% A Bank Code': str, '% B Bank Code': str, '% A NIK': str, '% B NIK': str, '% A Mobile': str, '% B Mobile': str, '% A number': str, '% B number': str})
             df['% nominal'] = df['% nominal'].str.replace(',', '', regex=False).astype(float)
             df['% date'] = df['% date'].apply(lambda x: datetime.strptime(x, '%d-%b-%Y'))
 

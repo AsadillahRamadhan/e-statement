@@ -105,13 +105,24 @@
     </div>
   </div>
 </div>
+<div class="card mt-3">
+  <div class="card-body">
+    <h4 class="text-secondary">Summary</h4>
+    <table class="table table-bordered mt-4" id="fileTable">
+      <thead>
+        <tr class="text-center">
+          <th>No</th>
+          <th>Filename</th>
+          <th>Source</th>
+        </tr>
+      </thead>
+      <tbody class="text-center"></tbody>
+    </table>
+  </div>
+</div>
 
 <template id="inputGroupTemplate">
   <div class="input-group-item mb-4 border p-3 rounded bg-light">
-    <div class="mb-4">
-      <label class="form-label">Month</label>
-      <input type="month" class="form-control" name="month[]" required />
-    </div>
     <div class="mb-3">
       <label class="form-label">Select PDF File</label>
       <input
@@ -120,7 +131,9 @@
         name="pdf_file[]"
         accept=".pdf"
         required
+        multiple
       />
+      <input type="hidden" name="source_per_batch[]">
     </div>
     <div class="mb-3">
       <label class="form-label">Source</label>
@@ -134,31 +147,74 @@
 </template>
 <script>
   $(document).ready(function () {
+    let groupIdCounter = 0;
+
     function addInputGroup() {
       const template = document.getElementById("inputGroupTemplate");
       const clone = template.content.cloneNode(true);
       const wrapper = document.createElement("div");
       wrapper.className = "position-relative";
+      const groupId = "group-" + groupIdCounter++;
+      wrapper.dataset.groupId = groupId;
+
       wrapper.appendChild(clone);
 
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
       removeBtn.className = "btn btn-danger btn-sm removeItem mt-2";
       removeBtn.textContent = "🗑️ Remove";
-      removeBtn.addEventListener("click", () => wrapper.remove());
+      removeBtn.addEventListener("click", () => {
+        wrapper.remove();
+        renderTable();
+      });
 
       wrapper.appendChild(removeBtn);
       document.getElementById("input-group-container").appendChild(wrapper);
 
-      $(wrapper).find(".bank-select").select2({
-        theme: "bootstrap4",
-        width: "100%",
+      const $file = $(wrapper).find('input[type="file"]');
+      const $source = $(wrapper).find("select");
+
+      $source.select2({ theme: "bootstrap4", width: "100%" });
+
+      $file.on("change", renderTable);
+      $source.on("change", renderTable);
+    }
+
+    function renderTable() {
+      const $container = $("#input-group-container").children();
+      const $tbody = $("#fileTable tbody");
+      $tbody.empty();
+      let rowNumber = 1;
+
+      document.querySelectorAll('input[type="file"]').forEach((f) => {
+        f.parentNode.querySelector('input[type="hidden"]').value = f.files.length;
+      });
+
+      $container.each(function () {
+        const groupId = $(this).data("groupId");
+        const $fileInput = $(this).find('input[type="file"]')[0];
+        const $sourceSelect = $(this).find("select");
+        const source = $sourceSelect.find("option:selected").text();
+
+        if ($fileInput.files.length > 0) {
+          for (let i = 0; i < $fileInput.files.length; i++) {
+            const filename = $fileInput.files[i].name;
+            const row = `
+              <tr data-group-id="${groupId}">
+                <td>${rowNumber++}</td>
+                <td>${filename}</td>
+                <td>${source || "-"}</td>
+              </tr>
+            `;
+            $tbody.append(row);
+          }
+        }
       });
     }
 
     addInputGroup();
 
-    document.getElementById("addMore").addEventListener("click", function () {
+    document.getElementById("addMore").addEventListener("click", () => {
       addInputGroup();
     });
   });
