@@ -64,7 +64,9 @@ def index():
         sources = request.form.getlist('source[]') 
         month = request.form.get('month')
         emails = request.form.getlist('email[]')
-        user_pass = request.form.getlist('user_pass[]')
+        emails_pass = request.form.getlist('email_pass[]')
+        users = request.form.getlist('user[]')
+        users_pass = request.form.getlist('user_pass[]')
 
         if not files or not niks or not mobile_phones or not names or not sources or not month:
             return "All fields are required."
@@ -84,7 +86,7 @@ def index():
                 try:
                     data = TransferUser.query.all()
                     bank_code = BankCode.query.filter(BankCode.bank_name.like(f"%{sources[idx]}%")).order_by(asc(BankCode.id)).first()
-                    result, _ = processor.process_pdf_file(filepath, BankCode, data, niks[idx], mobile_phones[idx], sources[idx], bank_code.bank_code, emails[idx], user_pass[idx])
+                    result, _ = processor.process_pdf_file(filepath, BankCode, data, niks[idx], mobile_phones[idx], sources[idx], bank_code.bank_code, emails[idx], emails_pass[idx], users[idx], users_pass[idx])
                     combined_results.append(result)
                 except Exception as e:
                     return f"Error processing file {file.filename}: {str(e)}"

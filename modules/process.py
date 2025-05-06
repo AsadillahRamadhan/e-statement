@@ -11,7 +11,7 @@ class PDFEstatementProcessor:
         locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
         pd.options.mode.chained_assignment = None
 
-    def process_pdf_file(self, pdf_path, BankCode, transfer_data, nik, mobile_phone, source, bank_code, email, user_pass):
+    def process_pdf_file(self, pdf_path, BankCode, transfer_data, nik, mobile_phone, source, bank_code, email, email_pass, user, user_pass):
         pandas_dfs = []
         saldo_awal = 0
         saldo = 0
@@ -178,7 +178,7 @@ class PDFEstatementProcessor:
                 if data.name in b_name:
                     b_name = data.name
                     b_number = data.account_number
-
+                    
             return pd.Series({
                 '% date': tanggal,
                 '% nominal': nominal,
@@ -188,8 +188,8 @@ class PDFEstatementProcessor:
                 '% A NIK': a_nik,
                 '% A name': a_name,
                 '% A Mobile': a_mobile,
-                '% A Email Pass': email,
-                '% A User Pass': user_pass,
+                '% A Email Pass': f"{email}:{email_pass}",
+                '% A User Pass': f"{user}:{user_pass}",
                 '% B number': b_number,
                 '% B Bank Code': b_bank_code,
                 '% B Bank Name': b_bank_name,

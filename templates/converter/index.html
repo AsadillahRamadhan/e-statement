@@ -25,26 +25,49 @@
 
         <div id="input-group-container">
           <div class="input-group-item mb-4 border p-3 rounded bg-light">
-            <div class="mb-3">
-              <label class="form-label">Email Pass</label>
-              <input
-                type="email"
-                class="form-control"
-                name="email[]"
-                placeholder="Enter Email Pass"
-                required
-              />
+            <div class="row">
+              <div class="mb-3 col-md-6">
+                <label class="form-label">Email</label>
+                <input
+                  type="email"
+                  class="form-control"
+                  name="email[]"
+                  placeholder="Enter Email"
+                  required
+                />
+              </div>
+              <div class="mb-3 col-md-6">
+                <label class="form-label">Email Password</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="email_pass[]"
+                  placeholder="Enter Email Password"
+                  required
+                />
+              </div>
             </div>
-
-            <div class="mb-3">
-              <label class="form-label">User Pass</label>
-              <input
-                type="user_pass"
-                class="form-control"
-                name="user_pass[]"
-                placeholder="Enter User Pass"
-                required
-              />
+            <div class="row">
+              <div class="mb-3 col-md-6">
+                <label class="form-label">Username</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="user[]"
+                  placeholder="Enter Username"
+                  required
+                />
+            </div>
+              <div class="mb-3 col-md-6">
+                <label class="form-label">Username Password</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="user_pass[]"
+                  placeholder="Enter Username Password"
+                  required
+                />
+              </div>
             </div>
 
             <div class="mb-3">
