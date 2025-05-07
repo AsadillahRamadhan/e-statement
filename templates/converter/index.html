@@ -87,6 +87,16 @@
               required
             />
           </div>
+          <div class="mb-3">
+            <label class="form-label">User List</label>
+            <input
+              type="file"
+              class="form-control"
+              name="user_list"
+              required
+              accept=".xlsx"
+            />
+          </div>
         </div>
 
         <div id="input-group-container"></div>
@@ -127,13 +137,13 @@
       <label class="form-label">Select PDF File</label>
       <input
         type="file"
-        class="form-control"
+        class="form-control pdf_file"
         name="pdf_file[]"
         accept=".pdf"
         required
         multiple
       />
-      <input type="hidden" name="source_per_batch[]">
+      <input type="hidden" name="source_per_batch[]" />
     </div>
     <div class="mb-3">
       <label class="form-label">Source</label>
@@ -186,13 +196,14 @@
       $tbody.empty();
       let rowNumber = 1;
 
-      document.querySelectorAll('input[type="file"]').forEach((f) => {
-        f.parentNode.querySelector('input[type="hidden"]').value = f.files.length;
+      document.querySelectorAll(".pdf_file").forEach((f) => {
+        f.parentNode.querySelector('input[type="hidden"]').value =
+          f.files.length;
       });
 
       $container.each(function () {
         const groupId = $(this).data("groupId");
-        const $fileInput = $(this).find('input[type="file"]')[0];
+        const $fileInput = $(this).find(".pdf_file")[0];
         const $sourceSelect = $(this).find("select");
         const source = $sourceSelect.find("option:selected").text();
 

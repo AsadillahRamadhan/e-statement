@@ -12,6 +12,10 @@
       method="POST"
     >
       <input type="hidden" name="data" value="{{ data }}" />
+      <input type="hidden" name="file_list" value="{{ file_list }}" />
+      <input type="hidden" name="name" value="{{ name }}" />
+      <input type="hidden" name="nik" value="{{ nik }}" />
+      <input type="hidden" name="mobile_phone" value="{{ mobile_phone }}" />
       <button type="submit" class="btn btn-success mt-3">Download Excel</button>
       <a class="btn btn-secondary mt-3" href="{{ url_for('index') }}"
         >Kembali</a

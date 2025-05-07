@@ -8,7 +8,9 @@ from extensions import db
 from sqlalchemy import or_, asc
 from datetime import datetime
 from io import StringIO
+import traceback
 import xlsxwriter
+import ast
 
 app = Flask(__name__)
 
@@ -68,6 +70,14 @@ def index():
         users = request.form.get('user')
         users_pass = request.form.get('user_pass')
         sources_per_batch = request.form.getlist('source_per_batch[]')
+        user_list = request.files.get('user_list')
+
+        if not files or not niks or not mobile_phones or not names or not sources or not user_list:
+            return "All fields are required."
+        
+        file_list = []
+        for file in files:
+            file_list.append(file.filename)
 
         final_sources = [
             source
@@ -75,9 +85,8 @@ def index():
             for _ in range(int(count))
         ]
 
-        if not files or not niks or not mobile_phones or not names or not sources:
-            return "All fields are required."
-        
+        account_list = pd.read_excel(user_list, engine='openpyxl', header=None, names=['account_number', 'bank', 'name', 'details'])
+                
         combined_results = []
 
         for idx, file in enumerate(files):
@@ -89,10 +98,13 @@ def index():
                 try:
                     data = TransferUser.query.all()
                     bank_code = BankCode.query.filter(BankCode.bank_name.like(f"%{final_sources[idx]}%")).order_by(asc(BankCode.id)).first()
-                    result, _ = processor.process_pdf_file(filepath, BankCode, data, niks, mobile_phones, final_sources[idx], bank_code.bank_code, emails, emails_pass, users, users_pass)
-                    combined_results.append(result)
+                    is_av, result, _ = processor.process_pdf_file(filepath, BankCode, data, names, niks, mobile_phones, final_sources[idx], bank_code.bank_code, emails, emails_pass, users, users_pass, account_list)
+                    if is_av:
+                        combined_results.append(result)
                 except Exception as e:
-                    return f"Error processing file {file.filename}: {str(e)}"
+                    error_details = traceback.format_exc()
+                    print(error_details)
+                    return f"Error processing CSV data: {str(e)}"
             else:
                 return f"Invalid file format for {file.filename}. Only PDFs are supported."
 
@@ -100,7 +112,7 @@ def index():
             final_df = pd.concat(combined_results, ignore_index=True)
             table_html = final_df.to_html(classes='table table-striped', index=False)
             csv_data = final_df.to_csv(index=False)
-            return render_template('converter/preview.html', title="Converter", data=csv_data, table=table_html, filename=f"export.xlsx", current_url=request.url)
+            return render_template('converter/preview.html', title="Converter", name=names, nik=niks, mobile_phone=mobile_phones, data=csv_data, table=table_html, file_list=file_list, filename=f"export.xlsx", current_url=request.url)
 
         return "No valid files processed."
     
@@ -216,6 +228,10 @@ def create_user():
 @app.post('/download/<filename>')
 def download_file(filename):
     data = request.form.get('data')
+    file_list = ast.literal_eval(request.form.get('file_list'))
+    name = request.form.get('name')
+    nik = request.form.get('nik')
+    mobile_phone = request.form.get('mobile_phone')
 
     if data:
         try:
@@ -261,12 +277,29 @@ def download_file(filename):
 
             workbook.close()
 
+            log = ConverterLog(
+                user_id = session['user_id'],
+                files = file_list,
+                name = name, 
+                nik = nik,
+                mobile_phone = mobile_phone
+            )
+            db.session.add(log)
+            db.session.commit()
+
             return send_file(output_path, as_attachment=True)
 
         except Exception as e:
             return f"Error processing CSV data: {str(e)}"
 
     return "No file available to download."
+
+@app.get('/converter-log')
+def converter_log():
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    logs = ConverterLog.query.filter_by(user_id=session['user_id']).order_by(ConverterLog.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    return render_template('converter_log/index.html', title="Converter Log", logs=logs, current_url=request.url)
 
 if __name__ == '__main__':
     app.run(debug=True)

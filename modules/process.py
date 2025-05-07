@@ -5,13 +5,15 @@ from PyPDF2 import PdfReader
 import locale
 import re
 import os
+import traceback
+
 
 class PDFEstatementProcessor:
     def __init__(self):
         locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
         pd.options.mode.chained_assignment = None
 
-    def process_pdf_file(self, pdf_path, BankCode, transfer_data, nik, mobile_phone, source, bank_code, email, email_pass, user, user_pass):
+    def process_pdf_file(self, pdf_path, BankCode, transfer_data, name, nik, mobile_phone, source, bank_code, email, email_pass, user, user_pass, account_list):
         pandas_dfs = []
         saldo_awal = 0
         saldo = 0
@@ -36,7 +38,8 @@ class PDFEstatementProcessor:
             df = dfs[0]
             if i == 1:
                 saldo_awal = df[df['KETERANGAN'] == 'SALDO AWAL']['SALDO'].values[0]
-                saldo = float(saldo_awal.replace(',', ''))
+                if not isinstance(saldo_awal, float):
+                    saldo = float(saldo_awal.replace(',', ''))
                 df = df[df['KETERANGAN'] != 'SALDO AWAL']
             
             try:
@@ -174,10 +177,9 @@ class PDFEstatementProcessor:
             if trans_type == "SWITCHING DB TRANSFER":
                 return pd.Series(dtype=object)
             
-            for data in transfer_data:
-                if data.name in b_name:
-                    b_name = data.name
-                    b_number = data.account_number
+            for index, account in account_list.iterrows():
+                if account['name'].strip() in b_name.strip() and account['bank'].strip() in b_bank_name.strip():
+                    b_name, b_number = account['name'], account['account_number']
                     
             return pd.Series({
                 '% date': tanggal,
@@ -186,7 +188,7 @@ class PDFEstatementProcessor:
                 '% A Bank Code': bank_code,
                 '% A Bank Name': source,
                 '% A NIK': a_nik,
-                '% A name': a_name,
+                '% A name': name,
                 '% A Mobile': a_mobile,
                 '% A Email Pass': f"{email}:{email_pass}",
                 '% A User Pass': f"{user}:{user_pass}",
@@ -202,10 +204,36 @@ class PDFEstatementProcessor:
                 '% Transactiontype': trans_type,
                 '% Direction': direction
             })
-
-        final_result = result.apply(extract_transaction_info, axis=1)
-        final_result = final_result[final_result.notna().all(axis=1)]
-        return final_result, saldo_akhr.replace(',', '')
+        if result.empty:
+            final_result = pd.DataFrame([{
+                '% date': "",
+                '% nominal': "",
+                '% A number': "",
+                '% A Bank Code': "",
+                '% A Bank Name': "",
+                '% A NIK': "",
+                '% A name': "",
+                '% A Mobile': "",
+                '% A Email Pass': "",
+                '% A User Pass': "",
+                '% B number': "",
+                '% B Bank Code': "",
+                '% B Bank Name': "",
+                '% B NIK': "",
+                '% B name': "",
+                '% B Mobile': "",
+                '% B Email Pass': "",
+                '% B User Pass': "",
+                '% Keterangan': "",
+                '% Transactiontype': "",
+                '% Direction': ""
+            }])
+            is_av = False
+        else:
+            final_result = result.apply(extract_transaction_info, axis=1)
+            final_result = final_result[final_result.notna().all(axis=1)]
+            is_av = True
+        return is_av, final_result, saldo_akhr.replace(',', '')
 
     def process_files_in_directory(self, directory):
         for dirpath, dirnames, filenames in os.walk(directory):
@@ -220,8 +248,9 @@ class PDFEstatementProcessor:
 
                     print(f"No Rekening: {result['% B number'].iloc[-1]}\tSaldo Akhir: {saldo_akhr}")
                 except Exception as e:
-                    print(e)
-                    print(f"Error processing file: {filename}")
+                    error_details = traceback.format_exc()
+                    print(error_details)  # atau logging.error(error_details)
+                    return f"Error processing CSV data: {str(e)}"
 
     def process_file(self, file_path):
         try:
@@ -233,5 +262,6 @@ class PDFEstatementProcessor:
 
             print(f"No Rekening: {result['% B number'].iloc[-1]}\tSaldo Akhir: {saldo_akhr}")
         except Exception as e:
-            print(e)
-            print(f"Error processing file: {file_path}")
+            error_details = traceback.format_exc()
+            print(error_details)  # atau logging.error(error_details)
+            return f"Error processing CSV data: {str(e)}"

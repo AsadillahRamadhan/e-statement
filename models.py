@@ -1,5 +1,8 @@
 from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 
 class User(db.Model):
     __tablename__ = "users"
@@ -32,3 +35,13 @@ class BankCode(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     bank_name = db.Column(db.String(100), nullable=False)
     bank_code = db.Column(db.String(3), nullable=False)
+
+class ConverterLog(db.Model):
+    __tablename__ = "converter_logs"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    nik = db.Column(db.String(16), nullable=False)
+    mobile_phone = db.Column(db.String(15), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    files = db.Column(db.JSON, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Jakarta")))
