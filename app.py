@@ -7,9 +7,12 @@ import pandas as pd
 from extensions import db
 from sqlalchemy import or_, asc
 from datetime import datetime
-from io import StringIO
+from io import StringIO, BytesIO
 import traceback
 import xlsxwriter
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.worksheet.dimensions import ColumnDimension
 import ast
 
 app = Flask(__name__)
@@ -85,7 +88,7 @@ def index():
             for _ in range(int(count))
         ]
 
-        account_list = pd.read_excel(user_list, engine='openpyxl', header=None, names=['account_number', 'bank', 'name', 'details'])
+        account_list = pd.read_excel(user_list, engine='openpyxl')
                 
         combined_results = []
 
@@ -301,5 +304,60 @@ def converter_log():
     logs = ConverterLog.query.filter_by(user_id=session['user_id']).order_by(ConverterLog.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     return render_template('converter_log/index.html', title="Converter Log", logs=logs, current_url=request.url)
 
+
+@app.get('/daftar-transfer/template')
+def daftar_transfer_template():
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Bank User Template"
+
+    headers = [
+        "% B number",
+        "% B Bank Code",
+        "% B Bank Name",
+        "% B NIK",
+        "% B name",
+        "% B Mobile",
+        "% B Email Pass",
+        "% B User Pass"
+    ]
+
+    header_font = Font(bold=True)
+    header_fill = PatternFill(start_color='DCE6F1', end_color='DCE6F1', fill_type='solid')
+    alignment = Alignment(horizontal='center')
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = alignment
+        cell.border = thin_border
+        cell.number_format = '@' 
+
+        for row in range(2, 102):
+            data_cell = ws.cell(row=row, column=col_num)
+            data_cell.number_format = '@'
+
+    widths = [15, 15, 20, 20, 25, 15, 25, 20]
+    for i, width in enumerate(widths, 1):
+        col_letter = ws.cell(row=1, column=i).column_letter
+        ws.column_dimensions[col_letter].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name="template_bank_user.xlsx",
+        as_attachment=True,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 if __name__ == '__main__':
     app.run(debug=True)
