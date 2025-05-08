@@ -178,7 +178,7 @@ class PDFEstatementProcessor:
                 return pd.Series(dtype=object)
             
             for index, account in account_list.iterrows():
-                if account['% B name'].strip() in b_name.strip() and account['% B Bank Name'].strip() in b_bank_name.strip():
+                if account['% Bank Code'] is not None and account['% B name'].strip() in b_name.strip() and account['% B Bank Name'].strip() in b_bank_name.strip():
                     b_name, b_number, b_nik, b_mobile, b_email_pass, b_user_pass = account['% B name'], account['% B number'], account['% B NIK'], account['% B Mobile'], account['% B Email Pass'], account['% B User Pass']
                     
             return pd.Series({
