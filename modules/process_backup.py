@@ -6,9 +6,6 @@ import locale
 import re
 import os
 import traceback
-import pdfplumber
-import warnings
-warnings.filterwarnings("ignore", message=".*CropBox missing.*")
 
 
 class PDFEstatementProcessor:
@@ -22,138 +19,73 @@ class PDFEstatementProcessor:
         saldo = 0
         period_thn = 0
 
-        def get_month(text):
-            bulan_list = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI',
-                'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER']
-            pattern = r'(' + '|'.join(bulan_list) + r')\s+(\d{4})'
-            match = re.search(pattern, text)
-            if match:
-                bulan = match.group(1).upper()
-                tahun = match.group(2)
-                return f"{bulan} {tahun}"
-            return None
-
-        def get_account_number(text):
-            match = re.search(r'NO\.?\s*REKENING\s*[:\-]?\s*(\d+)', text, re.IGNORECASE)
-            if match:
-                no_rekening = match.group(1)
-                return no_rekening
-            return None
-        
         reader = PdfReader(pdf_path)
-        number_of_pages = len(reader.pages)
+        number_of_pages = len(reader.pages) + 1
 
-        with pdfplumber.open(pdf_path) as pdf:
-                
-                
+        for i in range(1, number_of_pages):
+            dfs = tabula.read_pdf(pdf_path, pages=i, area=(230, 0, 1000, 1000), columns=[30, 78.82, 296, 331, 460.70])
+            dfhead = tabula.read_pdf(pdf_path, pages=i, area=(80, 0, 230, 1000))
+            an = dfhead[0].iloc[0, 0]
+            no_rek = dfhead[0].iloc[0, 3]
+            PERIODE = str(dfhead[0].iloc[4, 3]).strip()
+            period_thn = PERIODE.split(' ')[1] if ' ' in PERIODE else ''
 
-            for i in range(0, number_of_pages):
-                page = pdf.pages[i]
-                dfs = page.extract_text().split('\n')
-                dfhead_text = page.extract_text()
-                # dfs = tabula.read_pdf(pdf_path, pages=i, area=(230, 0, 1000, 1000), columns=[30, 78.82, 296, 331, 460.70])   
-                # dfhead_text = ' '.join(dfhead.astype(str).fillna('').values.flatten())
-                # print(dfhead[0])
+            if period_thn == '':
+                an = dfhead[0].iloc[0].index.tolist()[0]
+                no_rek = dfhead[0].iloc[0].index.tolist()[7]
+                period_thn = dfhead[0].iloc[2].iloc[-1].split(' ')[1]
 
-                list_pattern = r'(\d{2}/\d{2})\s+(.*?)\s+([\d,]+\.\d{2})(?:\s+(DB|CR))?(?:\s+([\d,]+\.\d{2}))?'
+            df = dfs[0]
+            if i == 1:
+                saldo_awal = df[df['KETERANGAN'] == 'SALDO AWAL']['SALDO'].values[0]
+                if not isinstance(saldo_awal, float):
+                    saldo = float(saldo_awal.replace(',', ''))
+                df = df[df['KETERANGAN'] != 'SALDO AWAL']
+            
+            try:
+                df = df[df['MUTASI'] != 'Bersambung ke Halaman berikut']
+            except:
+                pass
+            
+            df1 = df.drop('Unnamed: 0', axis=1)
+            merged_keterangan = df1['KETERANGAN'].fillna('').groupby(df1['TANGGAL'].notna().cumsum()).transform(' '.join)
+            df1.loc[df['TANGGAL'].isna(), 'KETERANGAN'] = merged_keterangan
+            df1 = df1[df1['TANGGAL'].notna()]
+            df1.reset_index(drop=True, inplace=True)
 
-                matched_data = []
-                for data in dfs:
-                    match = re.match(list_pattern, data)
-                    if match:
-                        keterangan = match.group(2)
-                        for i in range(dfs.index(data) + 1, len(dfs)):
-                            match_detail = re.match(list_pattern, dfs[i])
-                            if not match_detail:
-                                keterangan = " ".join([keterangan, dfs[i]])
-                            else:
-                                break
+            df2 = df.drop('Unnamed: 0', axis=1)
+            df2['KETERANGAN'] = df2.groupby(df2['TANGGAL'].notna().cumsum())['KETERANGAN'].apply(lambda x: ' '.join(x.dropna()))
+            df2.dropna(subset=['KETERANGAN'], inplace=True)
+            df2.reset_index(drop=True, inplace=True)
+            df1['KETERANGAN'] = df2['KETERANGAN']
 
-                        matched_data.append({
-                            'TANGGAL': match.group(1),
-                            'KETERANGAN': keterangan,
-                            'CBG': '-',
-                            'MUTASI': f"{match.group(3)}{f' {match.group(4)}' if match.group(4) else ''}",
-                            'SALDO': f'{match.group(5)}' if match.group(5) else ''
-                        })
-                dfs = pd.DataFrame(matched_data)
+            if i == number_of_pages - 1:
+                pattern = r"SALDO AWAL :.*$"
+                df1['KETERANGAN'] = df1['KETERANGAN'].apply(lambda x: re.sub(pattern, '', x))
 
-                an = name.upper()
-                no_rek = get_account_number(dfhead_text)
-                PERIODE = get_month(dfhead_text)
-                period_thn = PERIODE.split(' ')[1] if ' ' in PERIODE else ''
+            df1.insert(0, 'no_rek', no_rek)
+            df1.insert(1, 'nama_rek', an)
+            df1.insert(2, 'mata_uang', 'IDR')
+            df1.insert(3, 'periode', PERIODE)
+            df1.insert(8, 'DBCR', df1['MUTASI'].apply(lambda x: 'DB' if 'DB' in str(x) else 'CR'))
 
+            df1['MUTASI'] = df1['MUTASI'].str.replace('DB', '').str.replace(',', '').astype(float)
 
-                # if period_thn == '':
-                #     print(dfhead)
-                #     an = dfhead[0].iloc[0].index.tolist()[0]
-                #     no_rek = dfhead[0].iloc[0].index.tolist()[7]
-                #     period_thn = dfhead[0].iloc[2].iloc[-1].split(' ')[1] if not pd.isna(dfhead[0].iloc[2].iloc[-1]) else dfhead[0].iloc[2].iloc[-4].split(' ')[1]
+            def calculate_saldo(row):
+                nonlocal saldo
+                if row['DBCR'] == 'CR':
+                    saldo += row['MUTASI']
+                elif row['DBCR'] == 'DB':
+                    saldo -= row['MUTASI']
+                return round(saldo, 2)
 
-                # df = dfs[0]
-                # if i == 1:
-                #     saldo_awal = df[df['KETERANGAN'] == 'SALDO AWAL']['SALDO'].values[0]
-                #     if not isinstance(saldo_awal, float):
-                #         saldo = float(saldo_awal.replace(',', ''))
-                #     df = df[df['KETERANGAN'] != 'SALDO AWAL']
-                
-                # try:
-                #     df = df[df['MUTASI'] != 'Bersambung ke Halaman berikut']
-                # except:
-                #     pass
-                
-                # df1 = df.drop('Unnamed: 0', axis=1)
-                # merged_keterangan = df1['KETERANGAN'].fillna('').groupby(df1['TANGGAL'].notna().cumsum()).transform(' '.join)
-                # df1.loc[df['TANGGAL'].isna(), 'KETERANGAN'] = merged_keterangan
-                # df1 = df1[df1['TANGGAL'].notna()]
-                # df1.reset_index(drop=True, inplace=True)
+            df1['SALDO'] = df1.apply(calculate_saldo, axis=1)
 
-                # df2 = df.drop('Unnamed: 0', axis=1)
-                # df2['KETERANGAN'] = df2.groupby(df2['TANGGAL'].notna().cumsum())['KETERANGAN'].apply(lambda x: ' '.join(x.dropna()))
-                # df2.dropna(subset=['KETERANGAN'], inplace=True)
-                # df2.reset_index(drop=True, inplace=True)
-                # df1['KETERANGAN'] = df2['KETERANGAN']
+            if i == number_of_pages - 1:
+                dfakhir = tabula.read_pdf(pdf_path, pages=i, area=(230, 0, 1000, 1000), columns=[30, 78.82, 460.70])
+                saldo_akhr = dfakhir[0].iloc[-1, 2].split(':')[1].strip().replace(',', '')
 
-                # if i == number_of_pages - 1:
-                #     pattern = r"SALDO AWAL :.*$"
-                #     df1['KETERANGAN'] = df1['KETERANGAN'].apply(lambda x: re.sub(pattern, '', x))
-
-                # df1.insert(0, 'no_rek', no_rek)
-                # df1.insert(1, 'nama_rek', an)
-                # df1.insert(2, 'mata_uang', 'IDR')
-                # df1.insert(3, 'periode', PERIODE)
-                # df1.insert(8, 'DBCR', df1['MUTASI'].apply(lambda x: 'DB' if 'DB' in str(x) else 'CR'))
-
-                # df1['MUTASI'] = df1['MUTASI'].str.replace('DB', '').str.replace(',', '').astype(float)
-                
-                # df1.insert(0, 'no_rek', no_rek)
-                # df1.insert(1, 'nama_rek', an)
-                # df1.insert(2, 'mata_uang', 'IDR')
-                # df1.insert(3, 'periode', PERIODE)
-
-                dfs['no_rek'] = no_rek
-                dfs['nama_rek'] = an
-                dfs['mata_uang'] = 'IDR'
-                dfs['periode'] = PERIODE
-                dfs['SALDO'] = '-'
-                dfs['DBCR'] = dfs['MUTASI'].apply(lambda x: 'DB' if 'DB' in str(x) else 'CR')
-                dfs['MUTASI'] = dfs['MUTASI'].str.replace('DB', '').str.replace(',', '').astype(float)
-
-                def calculate_saldo(row):
-                    nonlocal saldo
-                    if row['DBCR'] == 'CR':
-                        saldo += row['MUTASI']
-                    elif row['DBCR'] == 'DB':
-                        saldo -= row['MUTASI']
-                    return round(saldo, 2)
-
-                # df1['SALDO'] = df1.apply(calculate_saldo, axis=1)
-
-                # if i == number_of_pages - 1:
-                #     dfakhir = tabula.read_pdf(pdf_path, pages=i, area=(230, 0, 1000, 1000), columns=[30, 78.82, 460.70])
-                #     saldo_akhr = dfakhir[0].iloc[-1, 2].split(':')[1].strip().replace(',', '')
-
-                pandas_dfs.append(dfs)
+            pandas_dfs.append(df1)
 
         result = pd.concat(pandas_dfs, ignore_index=True)
         result.rename(columns={'KETERANGAN': 'keterangan', 'CBG': 'cbg', 'MUTASI': 'jumlah', 'SALDO': 'saldo', 'TANGGAL': 'tanggal'}, inplace=True)
@@ -172,7 +104,7 @@ class PDFEstatementProcessor:
             errors='coerce'
         ).dt.strftime('%d-%b-%Y')
         result['jumlah'] = result['jumlah'].apply(lambda x: locale.format_string("%d", round(float(x)), grouping=True))
-        # result['saldo'] = result['saldo'].apply(lambda x: locale.format_string("%d", round(float(x)), grouping=True))
+        result['saldo'] = result['saldo'].apply(lambda x: locale.format_string("%d", round(float(x)), grouping=True))
 
         def extract_transaction_info(row):
             keterangan = row['keterangan'].upper()
@@ -181,8 +113,6 @@ class PDFEstatementProcessor:
             a_number = row['no_rek']
             a_name = row['nama_rek']
             tanggal = row['tanggal']
-
-            print(tanggal, keterangan)
 
             b_number = '-'
             b_nik = '-'
@@ -212,15 +142,7 @@ class PDFEstatementProcessor:
                             b_bank_code = bank.bank_code
                             b_bank_name = bank.bank_name
                     else:
-                        match = re.findall(r'BI-FAST\s+(DB|CR)\s+BIF\s+(TRANSFER)\s+DR\s+TANGGAL\s+\:\d{2}\/\d{2}\s+(\d+)\s+(.*)', keterangan)
-                        if match:
-                            b_name = match[0][3]
-                            bank = BankCode.query.filter(BankCode.bank_code == match[0][2]).first()
-                            if(bank):
-                                b_bank_code = bank.bank_code
-                                b_bank_name = bank.bank_name
-                            else:
-                                return pd.Series(dtype=object)
+                        return pd.Series(dtype=object)
             elif 'TRSF E-BANKING' in keterangan:
                 match = re.findall(r"TRSF E-BANKING\s+(CR|DB)\s+(.*)\s+(\d+).\d+\s+(.*)", keterangan)
                 if(match):
@@ -230,11 +152,7 @@ class PDFEstatementProcessor:
                     if(match):
                         b_name = match[0][3]
                     else:
-                        match = re.findall(r"TRSF E-BANKING\s+(CR|DB)\s+(\d{2}\/\d{2})\s+[\w/\\]+\s+(.*)", keterangan)
-                        if(match):
-                            b_name = match[0][2]
-                        else:
-                            return pd.Series(dtype=object)
+                        return pd.Series(dtype=object)
             elif 'SWITCHING' in keterangan:
                 match = re.findall(r"SWITCHING\s+.*\s+(\d+)\s+(.*)", keterangan)
                 if(match):
@@ -251,8 +169,6 @@ class PDFEstatementProcessor:
 
                 return pd.Series(dtype=object)
 
-
-            
             trans_type = re.split(r'\s+\d{3,}|KE\s+\d{3,}|DARI\s+\d{3,}', keterangan)[0].strip()
 
             # if trans_type == "SWITCHING DB TRANSFER" or trans_type == 'SWITCHING CR DR':
@@ -260,13 +176,12 @@ class PDFEstatementProcessor:
 
             if trans_type == "SWITCHING DB TRANSFER":
                 return pd.Series(dtype=object)
-
+            
             for index, account in account_list.iterrows():
-                if pd.isna(account['% B Bank Name']):
+                if account['% B name'].strip() == ':':
                     continue
                 if account['% B name'].strip() in b_name.strip() and account['% B Bank Name'].strip() in b_bank_name.strip():
-                    account = account.fillna('-')
-                    b_name, b_number, b_nik, b_mobile, b_email_pass, b_user_pass = account['% B name'] , account['% B number'], account['% B NIK'], account['% B Mobile'], account['% B Email Pass'], account['% B User Pass']
+                    b_name, b_number, b_nik, b_mobile, b_email_pass, b_user_pass = account['% B name'], account['% B number'], account['% B NIK'], account['% B Mobile'], account['% B Email Pass'], account['% B User Pass']
                     
             return pd.Series({
                 '% date': tanggal,
@@ -320,7 +235,7 @@ class PDFEstatementProcessor:
             final_result = result.apply(extract_transaction_info, axis=1)
             final_result = final_result[final_result.notna().all(axis=1)]
             is_av = True
-        return is_av, final_result, None
+        return is_av, final_result, saldo_akhr.replace(',', '')
 
     def process_files_in_directory(self, directory):
         for dirpath, dirnames, filenames in os.walk(directory):

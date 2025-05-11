@@ -113,6 +113,14 @@ def index():
 
         if combined_results:
             final_df = pd.concat(combined_results, ignore_index=True)
+            final_df = final_df[final_df.notna().all(axis=1)]
+            final_df['% date'] = pd.to_datetime(final_df['% date'], format='%d-%b-%Y', errors='coerce')
+            final_df = final_df.sort_values(by='% date')
+            final_df['% date'] = pd.to_datetime(
+                final_df['% date'],
+                format='%d/%m/%Y',
+                errors='coerce'
+            ).dt.strftime('%d-%b-%Y')
             table_html = final_df.to_html(classes='table table-striped', index=False)
             csv_data = final_df.to_csv(index=False)
             return render_template('converter/preview.html', title="Converter", name=names, nik=niks, mobile_phone=mobile_phones, data=csv_data, table=table_html, file_list=file_list, filename=f"export.xlsx", current_url=request.url)
