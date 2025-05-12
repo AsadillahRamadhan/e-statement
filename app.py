@@ -78,6 +78,8 @@ def index():
         if not files or not niks or not mobile_phones or not names or not sources or not user_list:
             return "All fields are required."
         
+        mobile_phones, niks = f"{int(mobile_phones)}", f"{int(niks)}"
+        
         file_list = []
         for file in files:
             file_list.append(file.filename)
