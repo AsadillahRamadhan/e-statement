@@ -14,6 +14,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.worksheet.dimensions import ColumnDimension
 import ast
+import re
 
 app = Flask(__name__)
 
@@ -78,7 +79,7 @@ def index():
         if not files or not niks or not mobile_phones or not names or not sources or not user_list:
             return "All fields are required."
         
-        mobile_phones, niks = f"{int(mobile_phones)}", f"{int(niks)}"
+        mobile_phones, niks = f"{''.join(re.findall(r'\d+', mobile_phones))}", f"{''.join(re.findall(r'\d+', niks))}"
         
         file_list = []
         for file in files:
